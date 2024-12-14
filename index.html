@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSA Image Encryption and Decryption</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+            margin-top: 30px;
+            margin-bottom: 20px;
+        }
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .button-container {
+            margin-bottom: 30px;
+        }
+        button {
+            background-color: #28a745; /* New button color */
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+            margin: 0 10px;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        button:hover {
+            background-color: #218838; /* New hover color */
+        }
+        .form-container {
+            display: none;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            padding: 25px;
+            width: 60%;
+            margin: 0 auto;
+            margin-bottom: 30px;
+        }
+        label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            display: inline-block;
+            color: #555;
+        }
+        input[type="file"],
+        textarea {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 15px;
+            color: #333;
+            box-sizing: border-box;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        .result-box {
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 20px;
+            margin-top: 15px;
+            border: 1px solid #e0e0e0;
+        }
+        pre {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            color: #333;
+            font-family: 'Courier New', Courier, monospace;
+            max-height: 200px;
+        }
+        #decrypted-data img {
+            max-width: 100%;
+            margin-top: 15px;
+            border-radius: 8px;
+            border: 2px solid #e0e0e0;
+        }
+        @media (max-width: 768px) {
+            .form-container {
+                width: 90%;
+            }
+            button {
+                padding: 10px 20px;
+                font-size: 14px;
+                margin: 5px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>RSA Image Encryption and Decryption</h1>
+
+    <div class="container">
+        <div class="button-container">
+            <button id="show-encrypt">Encrypt Image</button>
+            <button id="show-decrypt">Decrypt Image</button>
+        </div>
+
+        <div class="form-container" id="encrypt-form-container">
+            <h2>Encrypt Image</h2>
+            <form id="encrypt-form" method="POST" enctype="multipart/form-data" action="/encrypt">
+                <label for="file">Choose File:</label>
+                <input type="file" name="file" id="file" required><br>
+                <button type="submit">Encrypt</button>
+            </form>
+            <div class="result-box">
+                <h3>Encrypted Data:</h3>
+                <pre id="encrypted-data"></pre>
+            </div>
+        </div>
+
+        <div class="form-container" id="decrypt-form-container">
+            <h2>Decrypt Image</h2>
+            <form id="decrypt-form" method="POST" action="/decrypt">
+                <label for="encrypted_aes_key">Encrypted AES Key:</label>
+                <textarea name="encrypted_aes_key" id="encrypted_aes_key" required></textarea>
+                <label for="ciphertext">Ciphertext:</label>
+                <textarea name="ciphertext" id="ciphertext" required></textarea>
+                <label for="nonce">Nonce:</label>
+                <textarea name="nonce" id="nonce" required></textarea>
+                <label for="tag">Tag:</label>
+                <textarea name="tag" id="tag" required></textarea>
+                <button type="submit">Decrypt</button>
+            </form>
+            <div class="result-box">
+                <h3>Decrypted Image:</h3>
+                <div id="decrypted-data"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('encrypt-form-container').style.display = 'block';
+
+        document.getElementById('show-encrypt').addEventListener('click', function() {
+            document.getElementById('encrypt-form-container').style.display = 'block';
+            document.getElementById('decrypt-form-container').style.display = 'none';
+        });
+
+        document.getElementById('show-decrypt').addEventListener('click', function() {
+            document.getElementById('decrypt-form-container').style.display = 'block';
+            document.getElementById('encrypt-form-container').style.display = 'none';
+        });
+
+        document.getElementById('encrypt-form').onsubmit = async function (e) {
+            e.preventDefault();
+            let formData = new FormData(this);
+            let response = await fetch('/encrypt', {
+                method: 'POST',
+                body: formData
+            });
+            let result = await response.json();
+            document.getElementById('encrypted-data').textContent = JSON.stringify(result, null, 2);
+        };
+
+        document.getElementById('decrypt-form').onsubmit = async function (e) {
+            e.preventDefault();
+            let formData = new URLSearchParams(new FormData(this));
+            let response = await fetch('/decrypt', {
+                method: 'POST',
+                body: formData
+            });
+            let result = await response.json();
+
+            let decryptedImageData = result.decrypted_image;
+            let mimeType = result.mime_type;  // Get MIME type from the server response
+            let img = document.createElement('img');
+            img.src = 'data:' + mimeType + ';base64,' + decryptedImageData;  // Image source as Base64
+            document.getElementById('decrypted-data').innerHTML = '';  // Clear previous content
+            document.getElementById('decrypted-data').appendChild(img);  // Append the image
+        };
+    </script>
+</body>
+</html>
